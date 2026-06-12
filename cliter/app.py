@@ -131,6 +131,14 @@ class CliTerApp(App):
         geo = get_geo()
         await geo.start(interval=120)  # check every 2 minutes
 
+        # Auto-start P2P if configured
+        if settings.get("p2p", "enabled", default=False):
+            from cliter.services.p2p import get_p2p
+            p2p = get_p2p()
+            port = settings.get("p2p", "port", default=2096)
+            await p2p.start()
+            self.notify(f"P2P peer on port {port}", "success")
+
         # Refresh sidebar
         await self._refresh_sidebar()
 
@@ -914,6 +922,153 @@ class CliTerApp(App):
                 result = await exporter.import_file(args)
                 chat.add_message("assistant", f"**Import result:**\n{result}")
 
+        # ── Termux API ────────────────────────────
+
+        elif command in ("/battery", "/sms", "/tts", "/clip", "/wifi", "/notify"):
+            from cliter.services.termux_api import (
+                get_battery, send_sms, speak, get_clipboard, set_clipboard,
+                get_wifi_scan, notify
+            )
+            if command == "/battery":
+                chat.add_message("assistant", await get_battery())
+            elif command == "/clip":
+                if args:
+                    chat.add_message("assistant", await set_clipboard(args))
+                else:
+                    chat.add_message("assistant", await get_clipboard())
+            elif command == "/tts":
+                if args:
+                    chat.add_message("assistant", await speak(args))
+                else:
+                    chat.add_message("assistant", "Usage: `/tts <text>`")
+            elif command == "/sms":
+                parts = args.split(maxsplit=1)
+                if len(parts) == 2:
+                    chat.add_message("assistant", await send_sms(parts[0], parts[1]))
+                else:
+                    chat.add_message("assistant", "Usage: `/sms <number> <message>`")
+            elif command == "/wifi":
+                chat.add_message("assistant", await get_wifi_scan())
+            elif command == "/notify":
+                parts = args.split("|")
+                title = parts[0].strip() if parts else "CliTer"
+                msg = parts[1].strip() if len(parts) > 1 else args
+                chat.add_message("assistant", await notify(title, msg))
+
+        # ── Knowledge Base ──────────────────────────
+
+        elif command == "/kb":
+            from cliter.services.offline_kb import download, search, list_datasets, count_tokens
+            sub = args.split()[0] if args else "help"
+            sub_args = args[len(sub)+1:] if args else ""
+            if sub == "download":
+                chat.add_message("assistant", await download(sub_args.strip()))
+            elif sub == "search":
+                chat.add_message("assistant", await search(sub_args.strip()))
+            elif sub == "list":
+                datasets = list_datasets()
+                lines = ["📚 **Knowledge Base Datasets:**", ""]
+                for d in datasets:
+                    icon = "✅" if d["downloaded"] else "⬇️"
+                    size = f"({d['size']//1024}KB)" if d["downloaded"] else ""
+                    lines.append(f"  {icon} **{d['name']}** — {d['desc']} {size}")
+                tokens = await count_tokens()
+                lines.append(f"  Total: {tokens['total_kb']}KB across {tokens['datasets']} datasets")
+                chat.add_message("assistant", "\n".join(lines))
+            else:
+                chat.add_message("assistant",
+                    "**Knowledge Base commands:**\n"
+                    "  `/kb list` — Show available datasets\n"
+                    "  `/kb download <name>` — Download dataset for offline use\n"
+                    "  `/kb search <query>` — Search all downloaded datasets")
+
+        # ── Sync ──────────────────────────────────
+
+        elif command == "/sync":
+            from cliter.services.sync import get_sync
+            sync = get_sync()
+            sub = args.split()[0] if args else "status"
+            if sub == "push":
+                chat.add_message("assistant", await sync.push())
+            elif sub == "pull":
+                chat.add_message("assistant", await sync.pull())
+            else:
+                st = sync.status
+                lines = []
+                lines.append("**🔄 Multi-Device Sync**")
+                lines.append(f"  Configured: {'✅' if st['configured'] else '❌'}")
+                lines.append(f"  Gist ID: {st['gist_id'] or 'not created'}")
+                lines.append(f"  Last sync: {st['last_sync'] or 'never'}")
+                lines.append("  `/sync push` — Push state to cloud")
+                lines.append("  `/sync pull` — Pull state from cloud")
+                lines.append("  Set token: `/config github.token <token>`")
+                chat.add_message("assistant", "\n".join(lines))
+
+        # ── Exploit Suggester ─────────────────────
+
+        elif command == "/exploit":
+            from cliter.tools.exploit_suggester import suggest_all
+            from cliter.services.net_scanner import get_scanner
+            scanner = get_scanner()
+            devices_raw = scanner.devices
+            if not devices_raw:
+                # Run scan first
+                devices_raw = await scanner.scan()
+            devices = [{"ip": d.ip, "mac": d.mac, "vendor": d.vendor} for d in devices_raw]
+            chat.add_message("assistant", await suggest_all(devices))
+
+        # ── Timeline ─────────────────────────────
+
+        elif command == "/timeline":
+            from cliter.core.timeline import format_timeline
+            chat.add_message("assistant", format_timeline())
+
+        # ── P2P Sharing ──────────────────────────
+
+        elif command == "/p2p":
+            from cliter.services.p2p import get_p2p, query_peer
+            p2p = get_p2p()
+            sub = args.split()[0] if args else "status"
+            sub_args = args[len(sub)+1:] if len(args) > len(sub) else ""
+            if sub == "on":
+                port = int(sub_args) if sub_args.isdigit() else 2096
+                await p2p.start()
+                t = p2p.status["token"]
+                msg = f"🔗 P2P server on port {port}\nToken: `{t}`\nShare token securely."
+                chat.add_message("assistant", msg)
+            elif sub == "off":
+                await p2p.stop()
+                chat.add_message("assistant", "🔗 P2P server stopped")
+            elif sub == "ask":
+                # /p2p ask <host:port> <question>
+                parts = sub_args.split(maxsplit=1)
+                if len(parts) == 2:
+                    hostport = parts[0]
+                    question = parts[1]
+                    # extract host:port
+                    if ":" in hostport:
+                        h, p = hostport.split(":")
+                        token = settings.get("p2p", "token", default="")
+                        answer = await query_peer(h, int(p), question, token)
+                        chat.add_message("assistant", f"**Peer response:**\n{answer}")
+
+                    else:
+                        chat.add_message("assistant", "Usage: `/p2p ask <host:port> <question>`")
+                else:
+                    chat.add_message("assistant", "Usage: `/p2p ask <host:port> <question>`")
+            else:
+                st = p2p.status
+                lines = []
+                lines.append("**🔗 P2P Agent Sharing**")
+                lines.append(f"  Running: {'🟢' if st['running'] else '🔴'}")
+                lines.append(f"  Port: {st['port']}")
+                lines.append(f"  Token: `{st['token']}`")
+                lines.append(f"  Rate limit: {st['rate_limit']}")
+                lines.append("  `/p2p on [port]` — Start P2P server")
+                lines.append("  `/p2p off` — Stop server")
+                lines.append("  `/p2p ask <host:port> <question>` — Query a peer")
+                lines.append("  `/p2p` — Show status")
+                chat.add_message("assistant", "\n".join(lines))
         # ── Memory Viewer ──────────────────────────
 
         elif command == "/memory":
