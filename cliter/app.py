@@ -810,7 +810,7 @@ class CliTerApp(App):
                 lines = [
                     "**📍 Geo Tracker**",
                     f"  Last location: {st['last_location'] or 'never'}",
-                    f"  Gist ID: {st['gist_id'] or 'not published'}",
+                    f"  Pages URL: {st.get('repo_published', 'not published')}",
                     f"  Check interval: {st['check_interval']}s",
                 ]
                 if st['last_gist_update']:

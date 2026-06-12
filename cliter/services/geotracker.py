@@ -11,6 +11,7 @@ Privacy warning: IP-based geolocation is approximate. The gist is PUBLIC.
 import json
 import time
 import asyncio
+import base64
 import httpx
 from pathlib import Path
 from datetime import datetime, timezone
@@ -29,6 +30,12 @@ FALLBACK_API_URL = "https://ipinfo.io/json"
 GIST_FILENAME = "cliter-location.html"
 GIST_JSON_FILENAME = "cliter-geolocation.json"
 GIST_DESCRIPTION = "📍 CliTer Live Map — auto-updated via CliTer Agent"
+
+# Repo config
+REPO_OWNER = "SoonOver"
+REPO_NAME = "CliTer"
+REPO_PATH = "docs/location.html"
+REPO_JSON_PATH = "docs/location.json"
 
 
 class GeoLocation:
@@ -69,10 +76,10 @@ class GeoService:
         self._task: asyncio.Task | None = None
         self._running = False
         self._current_location: GeoLocation | None = None
-        self._gist_id: str | None = None
-        self._check_interval = 60  # seconds between checks
-        self._gist_update_interval = 1800  # 30 min between gist updates
-        self._last_gist_update = 0
+        self._repo_published: str | None = None  # pages URL
+        self._check_interval = 120  # seconds between checks
+        self._publish_interval = 1800  # 30 min between repo pushes
+        self._last_published = 0
         self.db = str(db_path())
 
     async def _init_db(self):
@@ -150,77 +157,62 @@ class GeoService:
             row = await cur.fetchone()
             return dict(row) if row else None
 
-    # ── GitHub Gist Publishing ─────────────────
+    # ── GitHub Repo Publishing (via Pages) ────
 
-    async def _query_gist_id(self) -> str | None:
-        """Find existing gist ID by either HTML or JSON filename."""
+    async def _publish_to_repo(self, loc: GeoLocation, history: list[dict]) -> str | None:
+        """Push HTML map + JSON data to repo docs/ folder for GitHub Pages."""
         token = settings.get("github", "token", default="")
         if not token:
-            return None
-        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get("https://api.github.com/gists", headers=headers)
-                gists = resp.json()
-                for g in gists:
-                    files = g.get("files", {})
-                    if GIST_FILENAME in files or GIST_JSON_FILENAME in files:
-                        return g["id"]
-        except Exception:
-            pass
-        return None
-
-    async def _update_gist(self, loc: GeoLocation, history: list[dict]) -> str | None:
-        """Create or update a GitHub gist with interactive map + JSON data."""
-        token = settings.get("github", "token", default="")
-        if not token:
-            log.warn("No GitHub token configured — gist publish disabled")
+            log.warn("No GitHub token — pages publish disabled")
             return None
 
-        # Build HTML map
         map_html = self._generate_map_html(loc, history)
-
-        # Build JSON data (secondary file)
-        current_data = loc.to_dict()
-        json_content = json.dumps({
-            "current": current_data,
+        json_data = json.dumps({
+            "current": loc.to_dict(),
             "history": history[:50],
-            "updated_at": current_data["timestamp"],
+            "updated_at": loc.ts_iso,
             "source": "CliTer Geo Tracker",
         }, indent=2)
 
-        files = {
-            GIST_FILENAME: {"content": map_html},
-            GIST_JSON_FILENAME: {"content": json_content},
-        }
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3+json",
         }
+        api_base = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
+        commit_msg = f"📍 Map update: {loc.city}, {loc.country}"
+        pages_url = f"https://{REPO_OWNER}.github.io/{REPO_NAME}/location.html"
 
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                if self._gist_id:
-                    url = f"https://api.github.com/gists/{self._gist_id}"
-                    resp = await client.patch(url, json={"files": files}, headers=headers)
-                else:
-                    resp = await client.post(
-                        "https://api.github.com/gists",
-                        json={"description": GIST_DESCRIPTION, "public": True, "files": files},
-                        headers=headers,
-                    )
-                    if resp.status_code == 201:
-                        self._gist_id = resp.json().get("id")
+                for file_path, content in [
+                    (REPO_PATH, map_html),
+                    (REPO_JSON_PATH, json_data),
+                ]:
+                    # Get current file SHA (if exists)
+                    sha = None
+                    resp = await client.get(f"{api_base}/contents/{file_path}", headers=headers)
+                    if resp.status_code == 200:
+                        sha = resp.json().get("sha")
 
-                if resp.status_code in (200, 201):
-                    data = resp.json()
-                    url = data.get("html_url")
-                    log.info(f"📍 Map updated: {url}")
-                    self._last_gist_update = time.time()
-                    return url
+                    # Create or update file
+                    payload = {
+                        "message": commit_msg,
+                        "content": base64.b64encode(content.encode()).decode(),
+                    }
+                    if sha:
+                        payload["sha"] = sha
+
+                    resp2 = await client.put(f"{api_base}/contents/{file_path}", json=payload, headers=headers)
+                    if resp2.status_code not in (200, 201):
+                        log.warn(f"Failed to push {file_path}: {resp2.status_code}")
+                        return None
+
+                self._last_gist_update = time.time()
+                log.info(f"📍 Map live: {pages_url}")
+                return pages_url
 
         except Exception as e:
-            log.warn(f"Gist update failed: {e}")
+            log.warn(f"Repo publish failed: {e}")
 
         return None
 
@@ -378,8 +370,6 @@ class GeoService:
         self._check_interval = interval
         self._running = True
 
-        # Try to find existing gist
-        self._gist_id = await self._query_gist_id()
 
         self._task = asyncio.create_task(self._loop())
         log.info("Geo tracker started")
@@ -416,12 +406,12 @@ class GeoService:
                 continue
 
             # Update gist periodically
-            if time.time() - self._last_gist_update > self._gist_update_interval:
+            if time.time() - self._last_published > self._publish_interval:
                 try:
                     history = await self.get_history(limit=50)
-                    gist_url = await self._update_gist(new_loc, history)
-                    if gist_url:
-                        log.info(f"📍 Broadcast: {gist_url}")
+                    self._repo_published = await self._publish_to_repo(new_loc, history)
+                    if map_url:
+                        log.info(f"📍 Broadcast: {map_url}")
                 except Exception as e:
                     log.warn(f"Gist update failed: {e}")
 
@@ -430,9 +420,9 @@ class GeoService:
         return {
             "running": self._running,
             "last_location": str(self._current_location) if self._current_location else None,
-            "gist_id": self._gist_id,
+            "published": self._repo_published,
             "check_interval": self._check_interval,
-            "last_gist_update": self._last_gist_update,
+            "last_published": self._last_published,
         }
 
     async def force_update(self) -> str | None:
@@ -444,8 +434,8 @@ class GeoService:
         self._current_location = loc
         await self._save_to_db(loc)
         history = await self.get_history(limit=50)
-        gist_url = await self._update_gist(loc, history)
-        return gist_url or str(loc)
+        self._repo_published = await self._publish_to_repo(loc, history)
+        return self._repo_published or str(loc)
 
 
 # Global singleton
