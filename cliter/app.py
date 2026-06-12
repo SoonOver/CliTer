@@ -109,6 +109,10 @@ class CliTerApp(App):
         if settings.get("proxy", "enabled", default=False):
             await self._proxy_start()
 
+        # Auto-start geo tracker
+        geo = get_geo()
+        await geo.start(interval=120)  # check every 2 minutes
+
         # Refresh sidebar
         await self._refresh_sidebar()
 
@@ -314,12 +318,10 @@ class CliTerApp(App):
 - `/compact` — Compact long conversation history
 - `/export` — Export all config/providers/skills
 - `/export list` — List backup files
-|- `/import <path>` — Import from backup JSON
+- `/import <path>` — Import from backup JSON
 
 **Geo Tracking:**
-|- `/geotrack on [interval]` — Start location tracker
-|- `/geotrack off` — Stop tracker
-|- `/geotrack now` — Force immediate check + gist update
+- `/geotrack now` — Force location check + gist update
 
 **Strategy & Budget:**
 - `/strategy <manual|auto|fallback|round_robin|cheapest>` — Set strategy mode
@@ -797,28 +799,16 @@ class CliTerApp(App):
         elif command == "/geotrack":
             sub = args.split()[0] if args else "status"
             geo = get_geo()
-            if sub == "on":
-                interval = args.split()[1] if len(args.split()) > 1 else "60"
-                try:
-                    interval_int = max(30, int(interval))
-                except ValueError:
-                    interval_int = 60
-                await geo.start(interval=interval_int)
-                chat.add_message("assistant", f"📍 Geo tracker started (check every {interval_int}s).\nConfigure GitHub token via `/config github.token <token>` for gist broadcast.")
-            elif sub == "off":
-                geo.stop()
-                chat.add_message("assistant", "📍 Geo tracker stopped.")
-            elif sub == "now":
+            if sub == "now":
                 result = await geo.force_update()
                 if result:
-                    chat.add_message("assistant", f"📍 Current location detected.\n{result}")
+                    chat.add_message("assistant", f"📍 Current location: {result}")
                 else:
                     chat.add_message("assistant", "❌ Failed to detect location. Check internet connection.")
             else:
                 st = geo.status
                 lines = [
-                    "**📍 Geo Tracker Status:**",
-                    f"  Running: {'🟢' if st['running'] else '🔴'} {st['running']}",
+                    "**📍 Geo Tracker**",
                     f"  Last location: {st['last_location'] or 'never'}",
                     f"  Gist ID: {st['gist_id'] or 'not published'}",
                     f"  Check interval: {st['check_interval']}s",
@@ -829,8 +819,6 @@ class CliTerApp(App):
                     lines.append(f"  Last gist update: {mins_ago}m ago")
                 lines.append("")
                 lines.append("**Commands:**")
-                lines.append("  `/geotrack on [interval]` — Start tracker (default 60s)")
-                lines.append("  `/geotrack off` — Stop tracker")
                 lines.append("  `/geotrack now` — Force immediate check + gist update")
                 lines.append("  `/geotrack` — Show status")
                 chat.add_message("assistant", "\n".join(lines))
