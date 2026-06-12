@@ -4,13 +4,15 @@ from textual.containers import Vertical
 
 
 class SessionItem(ListItem):
-    def __init__(self, session_id: str, title: str, **kwargs):
+    def __init__(self, session_id: str, title: str, active: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.session_id = session_id
         self.session_title = title
+        self.active = active
 
     def compose(self):
-        yield Label(f"💬 {self.session_title}")
+        prefix = "📍" if self.active else "💬"
+        yield Label(f"{prefix} {self.session_title}")
 
 
 class ToolItem(ListItem):
@@ -59,11 +61,12 @@ class Sidebar(Vertical):
     def toggle(self):
         self.toggle_class("-hidden")
 
-    async def refresh_sessions(self, sessions: list[dict]):
+    async def refresh_sessions(self, sessions: list[dict], active_id: str = ""):
         lv = self.query_one("#session-list", ListView)
         await lv.clear()
         for s in sessions:
-            await lv.append(SessionItem(s["id"], s.get("title", "Untitled")))
+            is_active = s["id"] == active_id
+            await lv.append(SessionItem(s["id"], s.get("title", "Untitled"), active=is_active))
 
     async def refresh_tools(self, tools: list):
         lv = self.query_one("#tool-list", ListView)

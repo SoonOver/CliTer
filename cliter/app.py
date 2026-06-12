@@ -5,7 +5,7 @@ import json
 import yaml
 from pathlib import Path
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer
+from textual.widgets import Header, Footer, ListView
 from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 from textual import work
@@ -190,10 +190,40 @@ class CliTerApp(App):
     async def _refresh_sidebar(self):
         sidebar = self.query_one(Sidebar)
         sessions_list = await session.list_sessions()
-        await sidebar.refresh_sessions(sessions_list)
+        await sidebar.refresh_sessions(sessions_list, active_id=self.current_session_id)
         await sidebar.refresh_tools(registry.all_tools())
         skills = list_skills()
         await sidebar.refresh_skills(skills)
+
+    async def _switch_session(self, session_id: str):
+        """Switch to a different session — load messages, update UI."""
+        if session_id == self.current_session_id:
+            return
+        self.current_session_id = session_id
+        self.agent = Agent(session_id)
+
+        # Reload messages
+        chat = self.query_one(ChatPanel)
+        chat.clear_chat()
+        msgs = await session.get_messages(session_id)
+        for m in msgs:
+            if m["role"] in ("user", "assistant"):
+                chat.add_message(m["role"], m["content"])
+
+        # Update UI
+        sessions_list = await session.list_sessions()
+        await self.query_one(Sidebar).refresh_sessions(sessions_list, active_id=session_id)
+        sb = self.query_one(StatusBar)
+        sessions_info = [s for s in sessions_list if s["id"] == session_id]
+        if sessions_info:
+            sb.set_session(sessions_info[0].get("title", "Chat"))
+        sb.set_status("Ready")
+
+    def on_list_view_selected(self, event: ListView.Selected):
+        """Handle sidebar list selection — switch session."""
+        item = event.item
+        if hasattr(item, 'session_id'):
+            self.run_worker(self._switch_session(item.session_id))
 
     async def _new_session(self):
         sid = str(uuid.uuid4())[:8]
@@ -755,6 +785,7 @@ class CliTerApp(App):
                 planner = Planner()
                 result = await planner.execute(args)
                 chat.add_message("assistant", result)
+                sb.set_status("Ready")
 
         # ── Context compaction ────────────────────────
 
@@ -763,6 +794,7 @@ class CliTerApp(App):
             ok = await compactor.check_and_compact(self.current_session_id)
             if ok:
                 chat.add_message("assistant", "✅ Old messages compacted. Summary injected.")
+                sb.set_status("Ready")
             else:
                 chat.add_message("assistant", "Nothing to compact yet (< 10 messages).")
 
@@ -785,6 +817,7 @@ class CliTerApp(App):
             else:
                 path = await exporter.export_all(label=sub_args)
                 chat.add_message("assistant", f"✅ Exported to: `{path}`")
+                sb.set_status("Ready")
 
         elif command == "/import":
             if not args:
@@ -803,8 +836,10 @@ class CliTerApp(App):
                 result = await geo.force_update()
                 if result:
                     chat.add_message("assistant", f"📍 Current location: {result}")
+                    sb.set_status("Map updated")
                 else:
                     chat.add_message("assistant", "❌ Failed to detect location. Check internet connection.")
+                return
             else:
                 st = geo.status
                 lines = [
@@ -813,9 +848,9 @@ class CliTerApp(App):
                     f"  Pages URL: {st.get('repo_published', 'not published')}",
                     f"  Check interval: {st['check_interval']}s",
                 ]
-                if st['last_gist_update']:
+                if st.get('last_published',0):
                     import time
-                    mins_ago = int((time.time() - st['last_gist_update']) / 60)
+                    mins_ago = int((time.time() - st.get('last_published',0)) / 60)
                     lines.append(f"  Last gist update: {mins_ago}m ago")
                 lines.append("")
                 lines.append("**Commands:**")

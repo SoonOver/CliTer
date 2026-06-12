@@ -137,6 +137,12 @@ class DashboardScreen(ModalScreen[None]):
             mon_info = await monitor.get_monitor_status()
         except Exception:
             mon_info = {"running": False, "active": 0, "inactive": 0, "rate_limited": 0}
+        try:
+            from cliter.services.geotracker import get_service
+            geo = get_service()
+            mon_info["last_location"] = str(geo.status.get("last_location", "")) if geo.status.get("last_location") else None
+        except Exception:
+            pass
 
         items = [
             ("Strategy", strat_info.get("strategy", "auto")),
@@ -145,6 +151,7 @@ class DashboardScreen(ModalScreen[None]):
             ("Budget", f"{budget.get('used',0)} / {budget.get('limit',0) if budget.get('limit',0) > 0 else '∞'}"),
             ("Rate-limited", str(mon_info.get("rate_limited", 0))),
             ("Connections", f"{strat_info.get('available',0)} ready"),
+            ("Location", str(mon_info.get("last_location", "?")[:20]) if mon_info.get("last_location") else "?"),
         ]
 
         for label, val in items:

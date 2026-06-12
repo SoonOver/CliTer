@@ -51,7 +51,7 @@ class ChatPanel(VerticalScroll):
     def add_message(self, role: str, content: str):
         msg = ChatMessage(role, content)
         self.mount(msg)
-        self.scroll_end(animate=False)
+        self.call_after_refresh(self.scroll_end, animate=False)
 
     def update_last_assistant(self, content: str):
         """Update the last assistant message (for streaming)."""
@@ -64,7 +64,7 @@ class ChatPanel(VerticalScroll):
                     child.update(md)
                 except Exception:
                     child.update(content)
-                self.scroll_end(animate=False)
+                self.call_after_refresh(self.scroll_end, animate=False)
                 return
         # no existing assistant message, create one
         self.add_message("assistant", content)
