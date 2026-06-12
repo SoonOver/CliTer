@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from cliter.utils.paths import project_dir
+from pathlib import Path
 from cliter.utils.log import get_logger
 
 log = get_logger("timeline")
@@ -27,7 +27,7 @@ class TimelineEntry:
 
 def get_timeline(limit: int = 30) -> list[TimelineEntry]:
     """Read git log and extract timeline entries."""
-    repo_path = project_dir()
+    repo_path = Path(__file__).parent.parent.parent
     if not (repo_path / ".git").exists():
         return []
 
@@ -141,7 +141,7 @@ def format_timeline(limit: int = 20) -> str:
 def _compute_stats() -> dict:
     """Compute simple stats from git log."""
     try:
-        repo_path = project_dir()
+        repo_path = Path(__file__).parent.parent.parent
         total = subprocess.run(
             ["git", "rev-list", "--count", "HEAD"],
             capture_output=True, text=True, timeout=5, cwd=str(repo_path),

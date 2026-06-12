@@ -66,9 +66,9 @@ class SearchBar(Horizontal):
         if event.input.id == "search-input":
             self._search(event.value)
 
-    def on_static_clicked(self, event: Static.Clicked):
-        if event.static.id == "search-close":
-            self.toggle()
+    def on_click(self):
+        """Close search bar when clicking the ✕ area."""
+        self.toggle()
 
     def _search(self, query: str):
         """Search through chat messages and highlight matches."""
