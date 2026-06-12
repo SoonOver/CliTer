@@ -1,7 +1,7 @@
 {
   "current": {
-    "timestamp": "2026-06-12T04:18:09.350235+00:00",
-    "ip": "202.58.64.44",
+    "timestamp": "2026-06-12T04:33:55.385604+00:00",
+    "ip": "redacted",
     "country": "Indonesia",
     "region": "Central Java",
     "city": "Wonogiri",
@@ -10,6 +10,17 @@
     "isp": "PT Mamura Inter Media"
   },
   "history": [
+    {
+      "id": 5,
+      "timestamp": 1781238835.385604,
+      "ip": "202.58.64.44",
+      "country": "Indonesia",
+      "region": "Central Java",
+      "city": "Wonogiri",
+      "latitude": -7.81444,
+      "longitude": 110.921,
+      "isp": "PT Mamura Inter Media"
+    },
     {
       "id": 4,
       "timestamp": 1781237889.3502355,
@@ -55,6 +66,6 @@
       "isp": "PT Mamura Inter Media"
     }
   ],
-  "updated_at": "2026-06-12T04:18:09.350235+00:00",
+  "updated_at": "2026-06-12T04:33:55.385604+00:00",
   "source": "CliTer Geo Tracker"
 }
