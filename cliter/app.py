@@ -28,6 +28,7 @@ from cliter.ui.modal import InputModal
 from cliter.ui.provider_screen import ProviderManagerScreen
 from cliter.ui.dashboard_screen import DashboardScreen
 from cliter.ui.strategy_screen import StrategyScreen
+from cliter.ui.action_bar import ActionBar, ActionButton
 from cliter.proxy import manager as proxy_mgr
 from cliter.proxy.server import ProxyServer
 from cliter.proxy.nine_router import find_db, extract_api_keys, import_into_cliter
@@ -79,6 +80,7 @@ class CliTerApp(App):
             yield Sidebar()
             with Vertical(id="chat-container"):
                 yield ChatPanel()
+                yield ActionBar()
                 yield InputBox(id="input-box")
         yield StatusBar()
         yield Footer()
@@ -224,6 +226,52 @@ class CliTerApp(App):
         item = event.item
         if hasattr(item, 'session_id'):
             self.run_worker(self._switch_session(item.session_id))
+
+    # ── Quick Action handlers (from ActionBar) ──
+
+    def action_quick_dashboard(self):
+        self.push_screen(DashboardScreen())
+
+    def action_quick_providers(self):
+        self.push_screen(ProviderManagerScreen())
+
+    def action_quick_strategy(self):
+        self.push_screen(StrategyScreen())
+
+    def action_quick_geotrack(self):
+        self.run_worker(self._quick_geotrack())
+
+    async def _quick_geotrack(self):
+        chat = self.query_one(ChatPanel)
+        geo = get_geo()
+        result = await geo.force_update()
+        if result:
+            chat.add_message("assistant", f"📍 **Current location:** {result}")
+        else:
+            chat.add_message("assistant", "📍 Location check failed (no internet?)")
+        sb = self.query_one(StatusBar)
+        sb.set_status("Ready")
+
+    def action_quick_new_session(self):
+        self.action_new_session()
+
+    def action_quick_help(self):
+        chat = self.query_one(ChatPanel)
+        chat.add_message("assistant",
+            "**Quick Actions:**\n"
+            "- 📊 **Dashboard** — system overview\n"
+            "- 🔧 **Providers** — manage LLM providers\n"
+            "- ⚙️ **Strategy** — routing & budget config\n"
+            "- 📍 **Map** — force geo location update\n"
+            "- 🆕 **New Chat** — start fresh session\n"
+            "- 🗑 **Clear** — clear current chat\n\n"
+            "**Keybindings:** Ctrl+D Dashboard, Ctrl+P Providers, Ctrl+T Strategy, Ctrl+N New Chat"
+        )
+
+    def action_quick_clear(self):
+        self.query_one(ChatPanel).clear_chat()
+        sb = self.query_one(StatusBar)
+        sb.set_status("Cleared")
 
     async def _new_session(self):
         sid = str(uuid.uuid4())[:8]

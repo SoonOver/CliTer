@@ -6,7 +6,17 @@ from rich.text import Text
 
 
 class ChatMessage(Static):
-    """Single chat message."""
+    """Single chat message — clickable."""
+
+    DEFAULT_CSS = """
+    ChatMessage {
+        margin: 0 0 1 0;
+        padding: 0 1;
+    }
+    ChatMessage:hover {
+        background: $accent 15%;
+    }
+    """
 
     def __init__(self, role: str, content: str, **kwargs):
         super().__init__(**kwargs)
@@ -31,6 +41,27 @@ class ChatMessage(Static):
             self.update(md)
         except Exception:
             self.update(self.msg_content)
+
+    def on_click(self):
+        """Click message: user → copy to input, assistant → copy to clipboard."""
+        from cliter.ui.input_box import InputBox
+        try:
+            inp = self.app.query_one(InputBox)
+            if self.role == "user":
+                inp.text = self.msg_content
+                inp.focus()
+            elif self.role == "assistant":
+                # Copy to clipboard
+                import pyperclip
+                try:
+                    pyperclip.copy(self.msg_content)
+                except Exception:
+                    pass
+                sb = self.app.query_one("StatusBar")
+                if sb:
+                    sb.set_status("Copied!")
+        except Exception:
+            pass
 
 
 class ChatPanel(VerticalScroll):

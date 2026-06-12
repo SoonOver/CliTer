@@ -4,6 +4,14 @@ from textual.containers import Vertical
 
 
 class SessionItem(ListItem):
+    """Session list item — click to switch, right-click for menu."""
+
+    DEFAULT_CSS = """
+    SessionItem:hover {
+        background: $accent 20%;
+    }
+    """
+
     def __init__(self, session_id: str, title: str, active: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.session_id = session_id
@@ -13,6 +21,10 @@ class SessionItem(ListItem):
     def compose(self):
         prefix = "📍" if self.active else "💬"
         yield Label(f"{prefix} {self.session_title}")
+
+    def on_click(self):
+        """Left click — let parent ListView handle switching."""
+        pass
 
 
 class ToolItem(ListItem):
