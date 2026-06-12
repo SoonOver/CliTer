@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CliTer Live Location</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-bottom: 1px solid #30363d;
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #header h1 { font-size: 18px; font-weight: 600; color: #58a6ff; }
+  #header .info { font-size: 12px; color: #8b949e; text-align: right; }
+  #header .info strong { color: #c9d1d9; }
+  #map { position: fixed; top: 55px; left: 0; right: 0; bottom: 0; }
+  .location-card {
+    position: fixed; bottom: 20px; left: 20px; z-index: 1000;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    backdrop-filter: blur(8px);
+    min-width: 220px;
+  }
+  .location-card .city { font-size: 22px; font-weight: 700; color: #f0f6fc; }
+  .location-card .detail { color: #8b949e; margin-top: 2px; }
+  .location-card .detail span { color: #58a6ff; }
+  .update-btn {
+    position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+    background: #238636; color: white; border: none; border-radius: 6px;
+    padding: 8px 16px; font-size: 13px; cursor: pointer;
+    text-decoration: none;
+  }
+  .update-btn:hover { background: #2ea043; }
+  @media (max-width: 600px) {
+    #header h1 { font-size: 14px; }
+    #header .info { font-size: 10px; }
+    .location-card { left: 10px; bottom: 10px; padding: 8px 12px; }
+    .location-card .city { font-size: 16px; }
+    .update-btn { right: 10px; bottom: 10px; font-size: 11px; padding: 6px 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>📍 CliTer — Live Location</h1>
+  <div class="info">
+    <strong>Wonogiri</strong>, Central Java &middot; Indonesia<br>
+    <small>Updated: 2026-06-12 04:18:09 UTC</small>
+  </div>
+</div>
+<div id="map"></div>
+
+<div class="location-card">
+  <div class="city">Wonogiri</div>
+  <div class="detail">Central Java, Indonesia</div>
+  <div class="detail">ISP: <span>PT Mamura Inter Media</span></div>
+  <div class="detail">IP: <span>202.58.64.44</span></div>
+  <div class="detail">Lat/Lon: <span>-7.8144, 110.9210</span></div>
+  <div class="detail" style="margin-top:4px;font-size:11px;">2026-06-12 04:18:09 UTC</div>
+</div>
+
+<a class="update-btn" href="https://github.com/SoonOver/CliTer" target="_blank">⚡ CliTer</a>
+
+<script>
+  var map = L.map('map', {
+    center: [-7.81444, 110.921],
+    zoom: 6,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Current location marker
+  var marker = L.marker([-7.81444, 110.921], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:24px;height:24px;background:#238636;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(35,134,54,0.6);"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    })
+  }).addTo(map);
+  marker.bindPopup(`
+    <b style="font-size:16px;">📍 Wonogiri</b><br>
+    Central Java, Indonesia<br>
+    <small>ISP: PT Mamura Inter Media<br>2026-06-12 04:18:09 UTC</small>
+  `).openPopup();
+
+  // Pulse animation circle
+  L.circleMarker([-7.81444, 110.921], {
+    radius: 40, color: '#238636', fillColor: '#238636',
+    fillOpacity: 0.1, weight: 2, opacity: 0.3
+  }).addTo(map);
+
+  // History markers
+  
+                L.circleMarker([-7.81444, 110.921], {
+                    radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
+                    weight: 1
+                }).addTo(map)
+                .bindPopup('<b>Wonogiri</b>, Central Java, Indonesia<br><small>2026-06-12T04:18:09.350235+00:00</small>');
+            
+                L.circleMarker([-7.81444, 110.921], {
+                    radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
+                    weight: 1
+                }).addTo(map)
+                .bindPopup('<b>Wonogiri</b>, Central Java, Indonesia<br><small>2026-06-12T04:01:42.673336+00:00</small>');
+            
+                L.circleMarker([-7.81444, 110.921], {
+                    radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
+                    weight: 1
+                }).addTo(map)
+                .bindPopup('<b>Wonogiri</b>, Central Java, Indonesia<br><small>2026-06-12T03:56:36.030710+00:00</small>');
+            
+                L.circleMarker([-7.81444, 110.921], {
+                    radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
+                    weight: 1
+                }).addTo(map)
+                .bindPopup('<b>Wonogiri</b>, Central Java, Indonesia<br><small>2026-06-12T03:56:28.526912+00:00</small>');
+            
+</script>
+</body>
+</html>
