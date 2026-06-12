@@ -216,8 +216,15 @@ class GeoService:
 
         return None
 
+    def _privacy_filter(self, loc: GeoLocation) -> GeoLocation:
+        """Strip sensitive identifiers: IP, MAC, device info."""
+        loc.ip = "redacted"
+        return loc
+
     def _generate_map_html(self, loc: GeoLocation, history: list[dict]) -> str:
-        """Generate a self-contained HTML page with Leaflet interactive map."""
+        """Generate a self-contained HTML page with Leaflet interactive map.
+        Privacy: strips IP, MAC, device identifiers before publishing."""
+        loc = self._privacy_filter(loc)
         lat = loc.lat
         lon = loc.lon
         city = loc.city
@@ -225,7 +232,6 @@ class GeoService:
         country = loc.country
         isp = loc.isp
         ts = loc.ts_iso
-        ip = loc.ip
 
         # Build history markers JS
         history_markers = ""
@@ -309,7 +315,6 @@ class GeoService:
   <div class="city">{city}</div>
   <div class="detail">{region}, {country}</div>
   <div class="detail">ISP: <span>{isp}</span></div>
-  <div class="detail">IP: <span>{ip}</span></div>
   <div class="detail">Lat/Lon: <span>{lat:.4f}, {lon:.4f}</span></div>
   <div class="detail" style="margin-top:4px;font-size:11px;">{ts[:19].replace('T', ' ')} UTC</div>
 </div>
