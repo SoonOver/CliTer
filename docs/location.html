@@ -54,7 +54,7 @@
   <h1>📍 CliTer — Live Location</h1>
   <div class="info">
     <strong>Wonogiri</strong>, Central Java &middot; Indonesia<br>
-    <small>Updated: 2026-06-12 04:18:09 UTC</small>
+    <small>Updated: 2026-06-12 04:33:55 UTC</small>
   </div>
 </div>
 <div id="map"></div>
@@ -63,9 +63,8 @@
   <div class="city">Wonogiri</div>
   <div class="detail">Central Java, Indonesia</div>
   <div class="detail">ISP: <span>PT Mamura Inter Media</span></div>
-  <div class="detail">IP: <span>202.58.64.44</span></div>
   <div class="detail">Lat/Lon: <span>-7.8144, 110.9210</span></div>
-  <div class="detail" style="margin-top:4px;font-size:11px;">2026-06-12 04:18:09 UTC</div>
+  <div class="detail" style="margin-top:4px;font-size:11px;">2026-06-12 04:33:55 UTC</div>
 </div>
 
 <a class="update-btn" href="https://github.com/SoonOver/CliTer" target="_blank">⚡ CliTer</a>
@@ -96,7 +95,7 @@
   marker.bindPopup(`
     <b style="font-size:16px;">📍 Wonogiri</b><br>
     Central Java, Indonesia<br>
-    <small>ISP: PT Mamura Inter Media<br>2026-06-12 04:18:09 UTC</small>
+    <small>ISP: PT Mamura Inter Media<br>2026-06-12 04:33:55 UTC</small>
   `).openPopup();
 
   // Pulse animation circle
@@ -107,6 +106,12 @@
 
   // History markers
   
+                L.circleMarker([-7.81444, 110.921], {
+                    radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
+                    weight: 1
+                }).addTo(map)
+                .bindPopup('<b>Wonogiri</b>, Central Java, Indonesia<br><small>2026-06-12T04:33:55.385604+00:00</small>');
+            
                 L.circleMarker([-7.81444, 110.921], {
                     radius: 4, color: '#ff6b6b', fillColor: '#ff6b6b', fillOpacity: 0.7,
                     weight: 1
