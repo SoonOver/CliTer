@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "cliter"
+version = "0.1.0"
+description = "CliTer — Command Line Interface Termux. TUI-based AI agent for Termux."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Karst"}]
+dependencies = [
+    "textual>=0.80.0",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "aiosqlite>=0.20.0",
+]
+
+[project.optional-dependencies]
+full = ["trafilatura", "anthropic", "google-genai"]
+
+[project.scripts]
+cliter = "cliter.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cliter*"]

@@ -1,0 +1,37 @@
+# Default proxy providers — populated on first proxy start
+# Format: name, prefix, base_url, api_key(""=prompt later), models
+providers:
+  - name: OpenAI
+    prefix: oai
+    base_url: "https://api.openai.com/v1"
+    api_key: ""
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-4-turbo
+      - gpt-3.5-turbo
+  - name: OpenRouter
+    prefix: or
+    base_url: "https://openrouter.ai/api/v1"
+    api_key: ""
+    models:
+      - anthropic/claude-sonnet-4
+      - anthropic/claude-3.5-sonnet
+      - google/gemini-2.0-flash-001
+      - meta-llama/llama-3.3-70b-instruct
+  - name: Groq
+    prefix: groq
+    base_url: "https://api.groq.com/openai/v1"
+    api_key: ""
+    models:
+      - llama3-70b-8192
+      - llama3-8b-8192
+      - mixtral-8x7b-32768
+      - gemma2-9b-it
+  - name: DeepSeek
+    prefix: ds
+    base_url: "https://api.deepseek.com/v1"
+    api_key: ""
+    models:
+      - deepseek-chat
+      - deepseek-reasoner

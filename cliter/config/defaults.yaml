@@ -1,0 +1,42 @@
+# CliTer default configuration
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  api_key: ""
+  base_url: "https://api.openai.com/v1"
+  max_tokens: 4096
+  temperature: 0.7
+
+ui:
+  theme: dark
+  sidebar: true
+  show_tokens: true
+
+proxy:
+  enabled: false
+  host: "127.0.0.1"
+  port: 20129
+  api_key: "cliter-proxy-key"
+  auto_use: true
+  max_providers: 20
+
+strategy:
+  mode: auto            # manual | auto | fallback | round_robin | cheapest
+  budget_daily: 0       # 0 = unlimited
+  auto_retry: true
+  max_retries: 3
+
+agent:
+  system_prompt: |
+    You are CliTer, a helpful AI assistant running in the terminal.
+    You have access to tools for file operations, terminal commands, and web search.
+    Be concise and direct.
+  max_history: 50
+  auto_skills: true
+
+tools:
+  terminal:
+    timeout: 120
+    allow_background: true
+  web:
+    engine: duckduckgo

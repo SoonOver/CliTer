@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CliTer runtime
+cliter.db
+*.sqlite
+*.sqlite3
+
+# Exports
+.cliter/exports/
+
+# Credentials
+**/creds.txt
+**/*.pem
+**/*.key
+*.log
