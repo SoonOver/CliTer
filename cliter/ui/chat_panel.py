@@ -16,6 +16,13 @@ class ChatMessage(Static):
     ChatMessage:hover {
         background: $accent 15%;
     }
+    ChatMessage.-search-match {
+        border-left: solid $warning;
+    }
+    ChatMessage.-search-active {
+        background: $warning 25%;
+        border-left: solid $warning;
+    }
     """
 
     def __init__(self, role: str, content: str, **kwargs):

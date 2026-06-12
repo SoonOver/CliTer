@@ -29,6 +29,8 @@ from cliter.ui.provider_screen import ProviderManagerScreen
 from cliter.ui.dashboard_screen import DashboardScreen
 from cliter.ui.strategy_screen import StrategyScreen
 from cliter.ui.action_bar import ActionBar, ActionButton
+from cliter.ui.search_bar import SearchBar
+from cliter.ui.toast import ToastContainer
 from cliter.proxy import manager as proxy_mgr
 from cliter.proxy.server import ProxyServer
 from cliter.proxy.nine_router import find_db, extract_api_keys, import_into_cliter
@@ -63,6 +65,7 @@ class CliTerApp(App):
         Binding("ctrl+p", "open_providers", "Providers", show=True),
         Binding("ctrl+d", "open_dashboard", "Dashboard", show=True),
         Binding("ctrl+t", "open_strategy", "Strategy", show=True),
+        Binding("ctrl+f", "search_chat", "Search", show=True),
         Binding("ctrl+j", "send", "Send", show=False),
     ]
 
@@ -81,9 +84,19 @@ class CliTerApp(App):
             with Vertical(id="chat-container"):
                 yield ChatPanel()
                 yield ActionBar()
+                yield SearchBar()
                 yield InputBox(id="input-box")
         yield StatusBar()
+        yield ToastContainer()
         yield Footer()
+
+    def notify(self, message: str, toast_type: str = "info"):
+        """Show a toast notification. Filters geotracker messages automatically."""
+        try:
+            tc = self.query_one(ToastContainer)
+            tc.notify(message, toast_type)
+        except Exception:
+            pass
 
     # ── Lifecycle ─────────────────────────────────────
 
@@ -106,6 +119,9 @@ class CliTerApp(App):
         # Update status bar
         sb = self.query_one(StatusBar)
         sb.set_model(settings.get("llm", "model", default="gpt-4o-mini"))
+
+        # Update provider count in status bar
+        await self._refresh_provider_status()
 
         # Auto-start proxy if configured
         if settings.get("proxy", "enabled", default=False):
@@ -162,6 +178,16 @@ class CliTerApp(App):
                 api_key=p.get("api_key", ""),
                 models=p.get("models", []),
             )
+
+    async def _refresh_provider_status(self):
+        """Update provider count in status bar."""
+        try:
+            providers = await proxy_mgr.list_providers()
+            active = sum(1 for p in providers if p.get("is_active"))
+            sb = self.query_one(StatusBar)
+            sb.set_providers(f"{active}/{len(providers)}")
+        except Exception:
+            pass
 
     # ── Proxy ─────────────────────────────────────────
 
@@ -267,6 +293,18 @@ class CliTerApp(App):
             "- 🗑 **Clear** — clear current chat\n\n"
             "**Keybindings:** Ctrl+D Dashboard, Ctrl+P Providers, Ctrl+T Strategy, Ctrl+N New Chat"
         )
+
+    def action_search_chat(self):
+        """Toggle search bar (Ctrl+F)."""
+        try:
+            sb = self.query_one(SearchBar)
+            sb.toggle()
+            if sb.has_class("-visible"):
+                # Focus on input
+                inp = sb.query_one("#search-input")
+                inp.focus()
+        except Exception:
+            pass
 
     def action_quick_clear(self):
         self.query_one(ChatPanel).clear_chat()
@@ -593,6 +631,7 @@ class CliTerApp(App):
                     return
                 ok = await proxy_mgr.remove_provider(sub_args)
                 chat.add_message("assistant", f"Provider **{sub_args}** removed." if ok else f"Provider **{sub_args}** not found.")
+                await self._refresh_provider_status()
 
             elif sub == "models":
                 # /proxy models <name> <model1> <model2> ...
@@ -874,6 +913,18 @@ class CliTerApp(App):
                 exporter = Exporter()
                 result = await exporter.import_file(args)
                 chat.add_message("assistant", f"**Import result:**\n{result}")
+
+        # ── Memory Viewer ──────────────────────────
+
+        elif command == "/memory":
+            from cliter.ui.memory_screen import MemoryScreen
+            self.push_screen(MemoryScreen())
+
+        # ── Network Scanner ────────────────────────
+
+        elif command == "/net":
+            from cliter.ui.network_screen import NetworkScreen
+            self.push_screen(NetworkScreen())
 
         # ── Geo Tracker ─────────────────────────────
 
